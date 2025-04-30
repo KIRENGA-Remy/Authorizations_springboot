@@ -2,6 +2,7 @@ package national.exam.java.loginregister.entity;
 import jakarta.persistence.*;
 
 @Entity
+@Table(name = "accountUser")
 public class User {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
