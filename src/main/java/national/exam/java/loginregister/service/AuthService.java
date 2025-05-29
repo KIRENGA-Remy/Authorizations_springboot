@@ -4,43 +4,47 @@ import national.exam.java.loginregister.dto.LoginRequest;
 import national.exam.java.loginregister.dto.RegisterRequest;
 import national.exam.java.loginregister.entity.User;
 import national.exam.java.loginregister.repository.UserRepository;
-import national.exam.java.loginregister.util.JwtUtil;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.server.ResponseStatusException;
 
 @Service
 public class AuthService {
+
     @Autowired
     private UserRepository userRepository;
+
     @Autowired
     private PasswordEncoder passwordEncoder;
-    @Autowired
-    private JwtUtil jwtUtil;
 
-    public String register(RegisterRequest registerRequest) {
-//        if (userRepository.existsByUsername(registerRequest.getUsername())){
-//            return "Username already exists";
-//        }
-        if (userRepository.findByUsername(registerRequest.getUsername()).isPresent()) {
-            return "Username already exists";
+    public User register(RegisterRequest request) {
+        // Check if email already exists
+        if (userRepository.existsByEmail(request.getEmail())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Email already registered");
         }
+
+        // Create new user
         User user = new User();
-        user.setUsername(registerRequest.getUsername());
-        user.setPassword(passwordEncoder.encode(registerRequest.getPassword()));
+        user.setFirstName(request.getFirstName());
+        user.setLastName(request.getLastName());
+        user.setEmail(request.getEmail());
+        user.setPassword(passwordEncoder.encode(request.getPassword()));
+        // Role is automatically set to USER by default
 
-        userRepository.save(user);
-        return "User registered successfully";
+        return userRepository.save(user);
     }
-    public String login(LoginRequest loginRequest) {
-        User user = userRepository.findByUsername(loginRequest.getUsername())
-                .orElseThrow(() -> new UsernameNotFoundException("Username not found"));
 
-        if(!passwordEncoder.matches(loginRequest.getPassword(), user.getPassword())){
-            throw new RuntimeException("Invalid password");
+    public User login(LoginRequest request) {
+        User user = userRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid email or password"));
+
+        // Verify password
+        if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid email or password");
         }
-        return jwtUtil.generateToken(user.getUsername());
+
+        return user;
     }
 }
